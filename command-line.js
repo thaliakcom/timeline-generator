@@ -1,4 +1,4 @@
-import { REPORT_URL_CHUNK, FFLOGS_BASE_URL, FIGHT_URL_CHUNK } from 'constants';
+import { REPORT_URL_CHUNK, FFLOGS_BASE_URL, FIGHT_URL_CHUNK } from './constants.js';
 
 export function parseInput() {
     const reportUrl = process.argv[2];
