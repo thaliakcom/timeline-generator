@@ -16,13 +16,18 @@ export function processTimeline(timeline) {
                 return !event.ability.name.startsWith('unknown');
             })
             .map(event => {
-                if (actions[event.ability.guid] == null) {
-                    actions[event.ability.guid] = { description: 'Placeholder description for ' + event.ability.name };
+                const key = event.ability.name
+                    .replaceAll(' ', '-')
+                    .replaceAll('\'', '')
+                    .toLowerCase();
+                
+                if (actions[key] == null) {
+                    actions[key] = { description: 'Placeholder description for ' + event.ability.name, id: event.ability.guid };
                 }
 
                 return {
-                    at: event.timestamp - timeline.start,
-                    id: event.ability.guid
+                    at: event.timestamp + (event.duration ?? 0) - timeline.start,
+                    id: key
                 };
             })
     }
