@@ -12,14 +12,24 @@ export async function fetchTimeline(input) {
     }
 
     const fight = report.fights[input.fightId - 1];
-    const wipe = await (await fetch(`${FFLOGS_BASE_URL}v1/report/events/casts/${input.reportCode}?start=${fight.start_time}&end=${fight.end_time}&hostility=1&filter=type%3D%22begincast%22&api_key=${input.key}`, { method: 'GET' })).json();
+    const timeline = {
+        start: fight.start_time,
+        end: fight.end_time,
+        events: []
+    };
+    let casts = {
+        nextPageTimestamp: timeline.start
+    };
 
-    if (wipe.error != null) {
-        throw new Error(`Fetching of fight ${reportCode}/${fight} failed because ${report.error}.`);
+    while (casts.nextPageTimestamp != null && casts.nextPageTimestamp < timeline.end) {
+        casts = await (await fetch(`${FFLOGS_BASE_URL}v1/report/events/casts/${input.reportCode}?start=${casts.nextPageTimestamp}&end=${fight.end_time}&hostility=1&api_key=${input.key}`, { method: 'GET' })).json();
+
+        if (casts.error != null) {
+            throw new Error(`Fetching of fight ${reportCode}/${fight} failed because ${report.error}.`);
+        }
+
+        timeline.events.push(...casts.events);
     }
 
-    wipe.start = fight.start_time;
-    wipe.end = fight.end_time;
-
-    return wipe;
+    return timeline;
 }
