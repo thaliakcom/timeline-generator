@@ -34,12 +34,7 @@ function shouldFilter(lastEvent, currentEvent) {
         return true;
     }
 
-    if (lastEvent == null) {
-        return false;
-    }
-
-    return currentEvent.timestamp === lastEvent.timestamp
-        || (lastEvent.type === 'begincast' && currentEvent.type === 'cast' && lastEvent.ability.guid === currentEvent.ability.guid);
+    return false;
 }
 
 const TOLERANCE = 99;

@@ -22,7 +22,7 @@ export async function fetchTimeline(input) {
     };
 
     while (casts.nextPageTimestamp != null && casts.nextPageTimestamp < timeline.end) {
-        casts = await (await fetch(`${FFLOGS_BASE_URL}v1/report/events/casts/${input.reportCode}?start=${casts.nextPageTimestamp}&end=${fight.end_time}&hostility=1&api_key=${input.key}`, { method: 'GET' })).json();
+        casts = await (await fetch(`${FFLOGS_BASE_URL}v1/report/events/casts/${input.reportCode}?start=${casts.nextPageTimestamp}&end=${fight.end_time}&hostility=1&filter=type%21%3D%22begincast%22&api_key=${input.key}`, { method: 'GET' })).json();
 
         if (casts.error != null) {
             throw new Error(`Fetching of fight ${reportCode}/${fight} failed because ${report.error}.`);
