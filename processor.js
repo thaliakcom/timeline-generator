@@ -1,6 +1,7 @@
 // We attach a symbol property instead of a string key property
 // to avoid this property showing up in the generated YAML.
 const Name = Symbol('name');
+const Done = Symbol('done');
 
 function getKey(actions, ability) {
     let key = ability.name
@@ -58,24 +59,34 @@ export function processTimeline({ events, start }) {
         const lastTimelineItem = timeline[timeline.length - 1];
         const lastAction = lastTimelineItem == null ? null : actions[lastTimelineItem.id];
 
-        if (lastAction != null && lastAction[Name] === event.ability.name && lastTimelineItem.id !== key) {
-            if (lastAction.children == null) {
-                lastAction.children = [];
-            }
+        if (lastAction != null && lastAction[Name] === event.ability.name) {
+            if (lastTimelineItem.id !== key || lastTimelineItem.at !== event.at) {
+                if (lastAction.children == null) {
+                    lastAction.children = [];
+                }
+    
+                const at = event.timestamp + (event.duration ?? 0) - start - lastTimelineItem.at;
+    
+                if (!lastAction.children.some(x => isSameTimestamp(x.at, at))) {
+                    lastAction.children.push({
+                        at,
+                        id: key
+                    });
+                }
 
-            const at = event.timestamp + (event.duration ?? 0) - start - lastTimelineItem.at;
-
-            if (!lastAction.children.some(x => isSameTimestamp(x.at, at))) {
-                lastAction.children.push({
-                    at,
-                    id: key
-                })
+                continue;
+            } else if (lastAction[Done] == null) {
+                lastAction.count = lastAction.count == null ? 2 : lastAction.count + 1;
             }
         } else {
             timeline.push({
                 at: event.timestamp + (event.duration ?? 0) - start,
                 id: key
             });
+        }
+
+        if (lastAction != null) {
+            lastAction[Done] = true;
         }
     }
 
