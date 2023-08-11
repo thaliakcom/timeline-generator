@@ -67,7 +67,7 @@ export function processTimeline({ events, start }) {
     
                 const at = event.timestamp + (event.duration ?? 0) - start - lastTimelineItem.at;
     
-                if (!lastAction.children.some(x => isSameTimestamp(x.at, at))) {
+                if (lastAction.id !== key && !lastAction.children.some(x => isSameTimestamp(x.at, at))) {
                     lastAction.children.push({
                         at,
                         id: key
