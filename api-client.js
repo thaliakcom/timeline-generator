@@ -1,5 +1,13 @@
+import { fetchBuilder, FileSystemCache } from 'node-fetch-cache';
 import { FFLOGS_BASE_URL } from './constants.js';
 
+const fetch = fetchBuilder.withCache(new FileSystemCache({ cacheDirectory: './cache', ttl: undefined }));
+const CAST_FILTERS = 'type%21%3D%22begincast%22';
+const DAMAGE_TAKEN_FILTERS = 'type%3D%22damage%22';
+
+/**
+ * @param {{ reportCode: string, key: string, fightId: number }} input
+ */
 export async function fetchTimeline(input) {
     const report = await (await fetch(`${FFLOGS_BASE_URL}v1/report/fights/${input.reportCode}?api_key=${input.key}`, { method: 'GET' })).json();
 
@@ -12,24 +20,38 @@ export async function fetchTimeline(input) {
     }
 
     const fight = report.fights[input.fightId - 1];
+
+    /**
+     * @param {string} type
+     * @param {number} hostility
+     * @param {string} filters
+     */
+    async function fetchEvents(type, hostility, filters) {
+        let response = {
+            nextPageTimestamp: fight.start_time
+        };
+
+        const events = [];
+
+        while (response.nextPageTimestamp != null && response.nextPageTimestamp < fight.end_time) {
+            response = await (await fetch(`${FFLOGS_BASE_URL}v1/report/events/${type}/${input.reportCode}?start=${response.nextPageTimestamp}&end=${fight.end_time}&hostility=${hostility}&filter=${filters}&api_key=${input.key}`, { method: 'GET' })).json();
+    
+            if (response.error != null) {
+                throw new Error(`Fetching of fight ${input.reportCode}/${fight} failed because ${report.error}.`);
+            }
+    
+            events.push(...response.events);
+        }
+
+        return events;
+    }
+
     const timeline = {
         start: fight.start_time,
         end: fight.end_time,
-        events: []
+        casts: await fetchEvents('casts', 1, CAST_FILTERS),
+        damage: await fetchEvents('damage-taken', 0, DAMAGE_TAKEN_FILTERS)
     };
-    let casts = {
-        nextPageTimestamp: timeline.start
-    };
-
-    while (casts.nextPageTimestamp != null && casts.nextPageTimestamp < timeline.end) {
-        casts = await (await fetch(`${FFLOGS_BASE_URL}v1/report/events/casts/${input.reportCode}?start=${casts.nextPageTimestamp}&end=${fight.end_time}&hostility=1&filter=type%21%3D%22begincast%22&api_key=${input.key}`, { method: 'GET' })).json();
-
-        if (casts.error != null) {
-            throw new Error(`Fetching of fight ${reportCode}/${fight} failed because ${report.error}.`);
-        }
-
-        timeline.events.push(...casts.events);
-    }
 
     return timeline;
 }

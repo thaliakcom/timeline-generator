@@ -3,14 +3,11 @@
     "version": "1.0.0",
     "description": "A script to generate a fight's timeline out of an FFLogs link.",
     "type": "module",
-    "scripts": {
-    },
+    "scripts": {},
     "author": "cengels",
     "license": "UNLICENSED",
-    "devDependencies": {
-    },
     "dependencies": {
-        "js-yaml": "^4.1.0"
+        "js-yaml": "^4.1.0",
+        "node-fetch-cache": "^3.1.3"
     }
-  }
-  
+}

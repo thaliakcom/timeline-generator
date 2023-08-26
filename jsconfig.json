@@ -1,0 +1,8 @@
+{
+    "compilerOptions": {
+      "checkJs": true,
+      "lib": ["ESNext"],
+      "module": "nodenext"
+    },
+    "exclude": ["node_modules", "**/node_modules/*"]
+}
