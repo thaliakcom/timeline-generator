@@ -85,8 +85,8 @@ function processCasts(casts, actions, timeline, start) {
         if (lastAction != null && lastAction[Name] === event.ability.name) {
             if (lastTimelineItem.id !== key || lastTimelineItem.at !== event.timestamp) {
                 const at = event.timestamp + (event.duration ?? 0) - start - lastTimelineItem.at;
-    
-                if (lastAction.id !== event.ability.guid && !lastAction.children?.some(x => isSameTimestamp(x.at, at))) {
+
+                if (at > 50 && !lastAction.children?.some(x => actions[x.id].id === event.ability.guid && isSameTimestamp(x.at, at))) {
                     if (lastAction.children == null) {
                         lastAction.children = [];
                     }
@@ -135,13 +135,16 @@ function processDamage(events, actions) {
 
         const action = actions[key];
 
-        if (event.unmitigatedAmount > 0 && (event.mitigated == null || event.mitigated !== 1)) {
+        if (event.unmitigatedAmount > 0 && (event.targetResources.hitPoints > 1 || event.unmitigatedAmount < 200000)
+            && (event.mitigated == null || event.mitigated !== 1)
+            && (action.damage == null || action.damage < event.unmitigatedAmount)) {
             // It seems like the mitigated value is "1" if an invuln such as Holmgang or Living Dead
             // was used. Needs further testing, but would be a good way to filter out inflated invuln damage.
+            // We also test whether the target's HP are greater than 1 after this
+            // damage event to ensure they didn't get hit while having a magic vuln,
+            // which would heavily skew the results.
 
-            if (action.damage == null || action.damage < event.unmitigatedAmount) {
-                action.damage = event.unmitigatedAmount;
-            }
+            action.damage = event.unmitigatedAmount;
         }
     }
 }
@@ -154,7 +157,7 @@ function postProcess(actions, timeline) {
     for (const id in actions) {
         const action = actions[id];
 
-        if (action.damage == null && action.children != null && actions[action.children[0].id].damage != null) {
+        if (action.damage == null && action.children != null && actions[action.children[0].id].damage != null && (action.children.length === 1 || action.children[0].id === action.children[1].id)) {
             // Probably a cast and a damage event so we use the latter event.
 
             const child = action.children[0];
@@ -188,7 +191,7 @@ function postProcess(actions, timeline) {
 /** 
  * @typedef {{ guid: number, name: string }} Ability
  * @typedef {{ timestamp: number, duration?: number, ability: Ability }} CastEvent
- * @typedef {{ timestamp: number, ability: Ability, unmitigatedAmount: number, mitigated?: number, absorbed?: number, blocked?: number, multiplier: number }} DamageEvent
+ * @typedef {{ timestamp: number, ability: Ability, unmitigatedAmount: number, mitigated?: number, absorbed?: number, blocked?: number, multiplier: number, targetResources: { hitPoints: number } }} DamageEvent
  * @typedef {{ id: number, description: string, children?: TimelineEvent[], count?: number, damage?: number, [Name]?: string }} Action
  * @typedef {{ at: number, id: string }} TimelineEvent
  * @param {{ casts: CastEvent[], damage: DamageEvent[], start: number }} param0
