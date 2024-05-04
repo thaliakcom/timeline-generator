@@ -1,7 +1,7 @@
 import yaml from 'js-yaml';
-import clipboardy from 'clipboardy';
+import * as clipboard from './clipboard.mjs';
 
-const text = process.argv[2] === 'clipboard' ? clipboardy.readSync() : process.argv[2];
+const text = process.argv[2] === 'clipboard' ? clipboard.read() : process.argv[2];
 const adjustBy = Number(process.argv[3]);
 
 if (Number.isNaN(adjustBy)) {
@@ -16,6 +16,6 @@ for (const item of json) {
 
 const result = yaml.dump(json);
 
-clipboardy.writeSync(result);
+clipboard.write(result);
 
 console.log(`Result copied to clipboard!`);
