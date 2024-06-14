@@ -3,6 +3,7 @@ import { FFLOGS_BASE_URL } from './constants.js';
 
 const fetch = fetchBuilder.withCache(new FileSystemCache({ cacheDirectory: './cache', ttl: undefined }));
 const CAST_FILTERS = 'type%21%3D%22begincast%22';
+const TARGETABILITY_FILTERS = 'type%3D%22targetabilityupdate%22';
 const DAMAGE_TAKEN_FILTERS = 'type%3D%22damage%22';
 
 /**
@@ -50,6 +51,7 @@ export async function fetchTimeline(input) {
         start: fight.start_time,
         end: fight.end_time,
         casts: await fetchEvents('casts', 1, CAST_FILTERS),
+        targetability: await fetchEvents('summary', 1, TARGETABILITY_FILTERS),
         damage: await fetchEvents('damage-taken', 0, DAMAGE_TAKEN_FILTERS)
     };
 

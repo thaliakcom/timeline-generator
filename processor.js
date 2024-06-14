@@ -115,6 +115,21 @@ function processCasts(casts, actions, timeline, start) {
 }
 
 /**
+ * @param {TargetabilityEvent[]} events
+ * @param {TimelineEvent[]} timeline
+ * @param {number} start
+ */
+function processTargetability(events, timeline, start) {
+    for (const event of events) {
+        if (event.targetable === 1) {
+            timeline.push({ at: event.timestamp - start, id: '<targetable>' });
+        } else {
+            timeline.push({ at: event.timestamp - start, id: '<untargetable>' });
+        }
+    }
+}
+
+/**
  * @param {DamageEvent[]} events
  * @param {Record<string, Action>} actions
  */
@@ -191,18 +206,20 @@ function postProcess(actions, timeline) {
 /** 
  * @typedef {{ guid: number, name: string }} Ability
  * @typedef {{ timestamp: number, duration?: number, ability: Ability }} CastEvent
+ * @typedef {{ timestamp: number, sourceID: number, targetID: number, targetable: number }} TargetabilityEvent
  * @typedef {{ timestamp: number, ability: Ability, unmitigatedAmount: number, mitigated?: number, absorbed?: number, blocked?: number, multiplier: number, targetResources: { hitPoints: number } }} DamageEvent
  * @typedef {{ id: number, description: string, children?: TimelineEvent[], count?: number, damage?: number, [Name]?: string }} Action
  * @typedef {{ at: number, id: string }} TimelineEvent
- * @param {{ casts: CastEvent[], damage: DamageEvent[], start: number }} param0
+ * @param {{ casts: CastEvent[], targetability: TargetabilityEvent[], damage: DamageEvent[], start: number }} param0
  */
-export function processTimeline({ casts, damage, start }) {
+export function processTimeline({ casts, targetability, damage, start }) {
     /** @type {Record<string, Action>} */
     const actions = {};
     /** @type {TimelineEvent[]} */
     const timeline = [];
 
     processCasts(casts, actions, timeline, start);
+    processTargetability(targetability, timeline, start);
     processDamage(damage, actions);
     postProcess(actions, timeline);
 
