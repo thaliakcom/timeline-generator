@@ -8,15 +8,20 @@ const Done = Symbol('done');
 const AppliedBy = Symbol('applied-by');
 const IsBuff = Symbol('is-buff');
 
+/** @param {string} name */
+function keyFromName(name) {
+    return name
+    .replaceAll(' ', '-')
+    .replaceAll('\'', '')
+    .toLowerCase();
+}
+
 /**
  * @param {Record<string, { id: number }>} records
  * @param {{ name: string, guid: number }} item
  */
 function getKey(records, item) {
-    let key = item.name
-        .replaceAll(' ', '-')
-        .replaceAll('\'', '')
-        .toLowerCase();
+    let key = keyFromName(item.name);
 
     // We explicitly set the damage to undefined here
     // to ensure that the resulting JSON (YAML) has the property keys
@@ -215,7 +220,13 @@ function processStatusEffects(statuses, actions) {
             if (action != null) {
                 appliedBy = `[a:${action[0]}]`;
             } else {
-                appliedBy = effect.extraAbility.name;
+                const key = keyFromName(effect.extraAbility.name);
+
+                if (actions[key] != null) {
+                    appliedBy = `[a:${key}]`;
+                } else {
+                    appliedBy = effect.extraAbility.name;
+                }
             }
         }
 
@@ -309,8 +320,8 @@ export function processTimeline({ casts, targetability, damage, statuses, start 
     processCasts(casts, actions, timeline, start);
     processTargetability(targetability, timeline, start);
     processDamage(damage, actions);
-    const status = processStatusEffects(statuses, actions);
     postProcess(actions, timeline);
+    const status = processStatusEffects(statuses, actions);
 
     return {
         status,
