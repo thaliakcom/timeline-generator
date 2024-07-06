@@ -1,14 +1,19 @@
 // We attach a symbol property instead of a string key property
+
+import yaml from 'js-yaml';
+
 // to avoid this property showing up in the generated YAML.
 const Name = Symbol('name');
 const Done = Symbol('done');
+const AppliedBy = Symbol('applied-by');
+const IsBuff = Symbol('is-buff');
 
 /**
- * @param {Record<string, Action>} actions
- * @param {Ability} ability
+ * @param {Record<string, { id: number }>} records
+ * @param {{ name: string, guid: number }} item
  */
-function getKey(actions, ability) {
-    let key = ability.name
+function getKey(records, item) {
+    let key = item.name
         .replaceAll(' ', '-')
         .replaceAll('\'', '')
         .toLowerCase();
@@ -18,23 +23,18 @@ function getKey(actions, ability) {
     // in this order, always.
     // If we didn't do this, damage would always be last, which is undesirable.
 
-    if (actions[key] == null) {
-        actions[key] = { id: ability.guid, damage: undefined, description: 'Placeholder description for ' + ability.name, [Name]: ability.name };
+    if (records[key] == null) {
         return key;
     }
 
-    if (actions[key].id !== ability.guid) {
+    if (records[key].id !== item.guid) {
         let i = 1;
 
-        while (actions[`${key}-${i}`] != null && actions[`${key}-${i}`].id !== ability.guid) {
+        while (records[`${key}-${i}`] != null && records[`${key}-${i}`].id !== item.guid) {
             i++;
         }
 
         key = `${key}-${i}`;
-
-        if (actions[key] == null) {
-            actions[key] = { id: ability.guid, damage: undefined, description: 'Placeholder description for ' + ability.name, [Name]: ability.name };
-        }
     }
 
     return key;
@@ -61,6 +61,30 @@ function isSameTimestamp(at1, at2) {
     return Math.abs(at1 - at2) <= TOLERANCE;
 }
 
+export class Durations {
+    /** @type {number[]} */
+    data;
+
+    /** @param {number} duration */
+    constructor(duration) {
+        this.data = [duration];
+    }
+
+    dump() {
+        return this.data.length === 1 ? this.data[0].toString() : yaml.dump(this.data, { schema, flowLevel: 0 }).trim();
+    }
+}
+
+export const DurationsType = new yaml.Type('!format', {
+    kind: 'scalar',
+    resolve: () => false,
+    instanceOf: Durations,
+    /** @param {Durations} d */
+    represent: d => d.dump()
+})
+
+export const schema = yaml.DEFAULT_SCHEMA.extend({ implicit: [DurationsType] })
+
 /**
  * @param {CastEvent[]} casts
  * @param {Record<string, Action>} actions
@@ -79,6 +103,11 @@ function processCasts(casts, actions, timeline, start) {
         lastEvent = event;
 
         const key = getKey(actions, event.ability);
+
+        if (actions[key] == null) {
+            actions[key] = { id: event.ability.guid, damage: undefined, description: 'Placeholder description for ' + event.ability.name, [Name]: event.ability.name };
+        }
+
         const lastTimelineItem = timeline[timeline.length - 1];
         const lastAction = lastTimelineItem == null ? null : actions[lastTimelineItem.id];
 
@@ -165,6 +194,63 @@ function processDamage(events, actions) {
 }
 
 /**
+ * @param {StatusEvent[]} statuses
+ * @param {Record<string, Action>} actions
+ * @returns {Record<string, Status>}
+ */
+function processStatusEffects(statuses, actions) {
+    /** @type {Record<string, Status & { [AppliedBy]: string[], [IsBuff]: boolean }>} */
+    const status = {};
+    const actionEntries = Object.entries(actions);
+    
+    for (const effect of statuses) {
+        // fflogs guids for status effects always begin with "100"
+        const statusId = Number.parseInt(effect.ability.guid.toString().slice(3));
+        /** @type string | undefined */
+        let appliedBy;
+
+        if (effect.extraAbility != null) {
+            const action = actionEntries.find(x => effect.extraAbility.guid === x[1].id);
+
+            if (action != null) {
+                appliedBy = `[a:${action[0]}]`;
+            } else {
+                appliedBy = effect.extraAbility.name;
+            }
+        }
+
+        const key = getKey(status, { name: effect.ability.name, guid: statusId });
+
+        if (status[key] == null) {
+            status[key] = {
+                id: statusId,
+                duration: new Durations(effect.duration),
+                description: '',
+                [AppliedBy]: appliedBy != null ? [appliedBy] : [],
+                [IsBuff]: effect.type === 'applybuff'
+            };
+        } else {
+            const object = status[key];
+            
+            if (object.duration.data.every(x => Math.abs(effect.duration - x) > 500)) {
+                object.duration.data.push(effect.duration);
+            }
+
+            if (appliedBy != null && !object[AppliedBy].includes(appliedBy)) {
+                object[AppliedBy].push(appliedBy);
+            }
+        }
+    }
+
+    for (const key in status) {
+        const appliedBy = status[key][AppliedBy];
+        status[key].description = `${status[key][IsBuff] ? 'Applied' : 'Inflicted'} by ${appliedBy.length === 0 ? 'unknown' : appliedBy.join(', ')}`;
+    }
+
+    return status;
+}
+
+/**
  * @param {TimelineEvent[]} timeline
  * @param {Record<string, Action>} actions
  */
@@ -210,9 +296,11 @@ function postProcess(actions, timeline) {
  * @typedef {{ timestamp: number, ability: Ability, unmitigatedAmount: number, mitigated?: number, absorbed?: number, blocked?: number, multiplier: number, targetResources: { hitPoints: number } }} DamageEvent
  * @typedef {{ id: number, description: string, children?: TimelineEvent[], count?: number, damage?: number, [Name]?: string }} Action
  * @typedef {{ at: number, id: string }} TimelineEvent
- * @param {{ casts: CastEvent[], targetability: TargetabilityEvent[], damage: DamageEvent[], start: number }} param0
+ * @typedef {{ ability: { name: string, guid: number }, extraAbility?: { name: string, guid: number }, duration: number, type: 'applydebuff' | 'applybuff' }} StatusEvent
+ * @typedef {{ id: number, duration: Durations, description: string }} Status
+ * @param {{ casts: CastEvent[], targetability: TargetabilityEvent[], damage: DamageEvent[], statuses: StatusEvent[], start: number }} param0
  */
-export function processTimeline({ casts, targetability, damage, start }) {
+export function processTimeline({ casts, targetability, damage, statuses, start }) {
     /** @type {Record<string, Action>} */
     const actions = {};
     /** @type {TimelineEvent[]} */
@@ -221,9 +309,11 @@ export function processTimeline({ casts, targetability, damage, start }) {
     processCasts(casts, actions, timeline, start);
     processTargetability(targetability, timeline, start);
     processDamage(damage, actions);
+    const status = processStatusEffects(statuses, actions);
     postProcess(actions, timeline);
 
     return {
+        status,
         actions,
         timeline
     };

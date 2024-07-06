@@ -2,7 +2,7 @@ import fs from 'fs';
 import yaml from 'js-yaml';
 import { parseInput } from './command-line.js';
 import { fetchTimeline } from './api-client.js';
-import { processTimeline } from './processor.js';
+import { processTimeline, schema } from './processor.js';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 
@@ -13,7 +13,7 @@ const KEY_QUOTES_REGEX = /  "(\d+)":/gm;
         const input = parseInput();
         const timeline = await fetchTimeline(input);
         const processed = processTimeline(timeline);
-        const output = yaml.dump(processed, { quotingType: '"' })
+        const output = yaml.dump(processed, { quotingType: '"', lineWidth: Infinity, schema })
             .replaceAll(KEY_QUOTES_REGEX, '  $1:');
 
         const __filename = fileURLToPath(import.meta.url);
