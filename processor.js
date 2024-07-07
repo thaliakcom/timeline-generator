@@ -255,7 +255,7 @@ function processStatusEffects(statuses, actions) {
 
     for (const key in status) {
         const appliedBy = status[key][AppliedBy];
-        status[key].description = `${status[key][IsBuff] ? 'Applied' : 'Inflicted'} by ${appliedBy.length === 0 ? 'unknown' : appliedBy.join(', ')}`;
+        status[key].description = `${status[key][IsBuff] ? 'Granted' : 'Inflicted'} by ${appliedBy.length === 0 ? 'unknown' : appliedBy.join(', ')}`;
     }
 
     return status;
