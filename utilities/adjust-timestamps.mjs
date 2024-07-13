@@ -1,6 +1,8 @@
 import yaml from 'js-yaml';
 import * as clipboard from './clipboard.mjs';
 
+// Can add or subtract a certain value from all timestamps in a YAML timeline item sequence.
+
 const text = process.argv[2] === 'clipboard' ? clipboard.read() : process.argv[2];
 const adjustBy = Number(process.argv[3]);
 
