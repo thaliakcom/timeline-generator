@@ -1,17 +1,18 @@
 import { REPORT_URL_CHUNK, FFLOGS_BASE_URL, FIGHT_URL_CHUNK } from './constants.js';
 
 export function parseInput() {
-    const reportUrl = process.argv[2];
+    const args = process.argv.slice();
+    const keyArgIndex = args.indexOf('--key');
+
+    if (keyArgIndex === -1 || args[keyArgIndex + 1] == null) {
+        throw new Error('Must supply an API key using --key.');
+    }
+
+    const key = args.splice(keyArgIndex, 2)[1];
+    const reportUrl = args[2];
 
     if (typeof reportUrl !== 'string' || !reportUrl.startsWith(FFLOGS_BASE_URL)) {
         throw new Error('Must specify a valid report URL.');
-    }
-
-    const keyArgIndex = process.argv.indexOf('--key');
-    const key = process.argv[keyArgIndex + 1];
-
-    if (keyArgIndex === -1 || key == null) {
-        throw new Error('Must supply an API key using --key.');
     }
 
     const reportCodeIndex = reportUrl.indexOf(REPORT_URL_CHUNK);
@@ -28,7 +29,8 @@ export function parseInput() {
         throw new Error('The URL must be of a specific fight.');
     }
 
-    const reportCode = reportChunk.slice(0, fightIdIndex);
+    const hashIndex = reportChunk.indexOf('#');
+    const reportCode = reportChunk.slice(0, hashIndex);
 
     return {
         reportCode,
